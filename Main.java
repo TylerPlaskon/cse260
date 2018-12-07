@@ -7,10 +7,12 @@ import javafx.event.EventHandler;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.geometry.*;
 import javafx.scene.text.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.input.*;
 
@@ -40,22 +42,37 @@ public class Main extends Application {
 	static Rectangle food;
 	public static int speed = 100;
 	
+	
+	
+	public static Stage menu;
+	public static Image image;
+	public static ImagePattern imagePattern;
+	
+	
 	public enum Direction{
 		UP, DOWN, RIGHT, LEFT
 	};
 	
 	static void restart() {
+		
 		score = 0;
 		paused = false;
 		gameOver = false;
 		gameBegun = false;
 		tail = null;
 		head = null;
+		leader = null;
+		setup();
 	}
 		
 	static void gameOver() {
 		timer.cancel();
-		leader.rectangle.setVisible(false);
+		if(leader.rectangle.getLayoutY() < 0) {
+			leader.rectangle.setVisible(false);
+		}
+		else {
+			leader.rectangle.setStroke(Color.MEDIUMVIOLETRED);
+		}
 		something.setText("Game Over");
 		gameOver = true;
 		
@@ -66,12 +83,35 @@ public class Main extends Application {
 		int iHead = (int)(leader.rectangle.getLayoutX() / snakeSize);
 		int jHead = (int)(leader.rectangle.getLayoutY() / snakeSize);
 		
-		int randi = (int)(Math.random()*mult);
-		int randj = (int)(Math.random()*mult);
+		int randi = 0;
+		int randj = 0;
 		
-		while(iHead == randi && jHead == randj) {
+		boolean valid = false;
+		boolean notLeader = false;
+		boolean notBody = false;
+		
+		while(!valid) {
+			
+			notLeader = false;
+			notBody = false;
+			
 			randi = (int)(Math.random()*mult);
 			randj = (int)(Math.random()*mult);
+			
+			if((iHead != randi || jHead != randj)) {
+				notLeader = true;
+			}
+			
+			if(score < 2) {
+				notBody = true;
+			}
+			else if(!hitKids(randi*snakeSize, randj*snakeSize, head)) {
+				notBody = true;
+			}
+			
+			if(notLeader && notBody) {
+				valid = true;
+			}
 		}
 		
 		food.relocate(randi * snakeSize, randj * snakeSize);		
@@ -79,13 +119,12 @@ public class Main extends Application {
 	}
 	
 	static boolean hitKids(double x, double y, Segment seg) {
-		System.out.println("here");
-		if(x == seg.rectangle.getLayoutX() && y == seg.rectangle.getLayoutY()) {
+				
+		if(x == seg.x && y == seg.y) {
 			return true;
 		}
-		System.out.println("here");
 		if(seg.child != null) {
-			hitKids(x, y, seg.child);
+			if (hitKids(x, y, seg.child)) {return true;};
 		}
 		
 		return false;
@@ -97,9 +136,10 @@ public class Main extends Application {
 		double y = leader.rectangle.getLayoutY();
 		if(x < 0 || x > gamePane.getPrefWidth() - snakeSize || y < 0 || y > gamePane.getPrefHeight() - snakeSize) {return true;}
 		
-		/*if(hitKids(x, y, head)) {
-			return true;
-		}*/
+		if(score >= 2) {
+			if(hitKids(x, y, head)) {return true;}
+		}
+		
 		
 		return false;
 	}
@@ -107,7 +147,7 @@ public class Main extends Application {
 	static void play(KeyCode kc) {
 		leader = new Segment();
 		
-		food = new Rectangle(snakeSize, snakeSize, Color.GREEN);
+		food = new Rectangle(snakeSize, snakeSize, Color.BLACK);
 		if(kc.equals(KeyCode.W) || kc.equals(KeyCode.UP)) {
 			leader.rectangle.relocate(width/2-(mult % 2 != 0 ? snakeSize/2 : snakeSize), height-snakeSize);
 			direction = Direction.UP;
@@ -126,7 +166,8 @@ public class Main extends Application {
 		}
 		spawnFood();
 		gamePane.getChildren().addAll(leader.rectangle, food);
-		
+		leader.x = leader.rectangle.getLayoutX();
+		leader.y = leader.rectangle.getLayoutY();
 		
 		startTimer();
 	}
@@ -166,6 +207,8 @@ public class Main extends Application {
 							break;
 						
 						}
+						leader.x = leader.rectangle.getLayoutX();
+						leader.y = leader.rectangle.getLayoutY();
 						
 						if(score > 0) {moveSnake(tempX, tempY);}
 						
@@ -188,6 +231,11 @@ public class Main extends Application {
 		}, 0, speed);
 	}
 
+	public static void writePosition(Segment seg) {
+		seg.x = seg.rectangle.getLayoutX();
+		seg.y = seg.rectangle.getLayoutY();
+	}
+	
 	public static void moveSnake(double x, double y) {
 		if(score == 1) {
 			tail.rectangle.relocate(x, y);
@@ -205,6 +253,7 @@ public class Main extends Application {
 			Segment temp = tail;
 			tail = head;
 			head = temp;
+			writePosition(head);
 		}
 		else {
 			tail.rectangle.relocate(x, y);
@@ -218,14 +267,14 @@ public class Main extends Application {
 			tail = temp.parent;
 			tail.isTail = true;
 			tail.child = null;
+			writePosition(head);
 		}
+		writePosition(tail);
 	}
 	
 	public static void setup() {
 		
 		BorderPane bPane = new BorderPane();
-		
-		
 		
 		
 		bPane.setTop(setMenuBar());
@@ -289,6 +338,8 @@ public class Main extends Application {
 			head.child = tail;
 			tail.rectangle.relocate(x,y);
 			gamePane.getChildren().add(tail.rectangle);
+			head.x = head.rectangle.getLayoutX();
+			head.y = head.rectangle.getLayoutY();
 		}
 		else {
 			Segment seg = new Segment(tail, null);
@@ -298,10 +349,11 @@ public class Main extends Application {
 			tail = seg;
 			tail.rectangle.relocate(x,y);
 			gamePane.getChildren().add(tail.rectangle);
-			
-			
-		}
-		
+			head.x = head.rectangle.getLayoutX();
+			head.y = head.rectangle.getLayoutY();
+			}
+		tail.x = tail.rectangle.getLayoutX();
+		tail.y = tail.rectangle.getLayoutY();
 	}
 	
 	static void pause() {
@@ -328,7 +380,7 @@ public class Main extends Application {
 		settings.setAccelerator(KeyCombination.keyCombination("Ctrl+S"));
 		settings.setOnAction(
 			ae -> {
-				System.out.println("Settings");
+				showSettingsMenu();
 			}
 		);
 		MenuItem controls = new MenuItem("Rules/Controls");
@@ -385,6 +437,9 @@ public class Main extends Application {
 						unpause();
 					}
 				}
+				if (keyCode.equals(KeyCode.SPACE) && gameOver) {
+					restart();
+				}
 				
 			}
 		});
@@ -414,6 +469,124 @@ public class Main extends Application {
 		return gamePane;
 	}
 	
+	public static void showSettingsMenu() {
+		// Sets up settings menu. Mostly boring graphics here.
+		// Notable: each button restarts game with different settings, if custom is chosen,
+		//	program tries given values but defaults to intermediate game mode if integers can't be parsed
+		
+		/*controlsMenu.close();
+		scoresMenu.close();*/
+		
+		
+		Label settings = new Label("Settings");
+		
+		Button worm = new Button("Worm");
+		
+		Button snake = new Button("Snake");
+		
+		Button python = new Button("Python");
+		
+		Button dragon = new Button("Dragon");
+		
+		VBox mp = new VBox(10.0, settings, worm, snake, python, dragon);
+		
+		mp.setAlignment(Pos.CENTER);
+		
+		mp.setPrefWidth(200);
+
+		menu = new Stage();
+		menu.setTitle("Game Settings");
+		Scene menuScene = new Scene(mp);
+		menu.setScene(menuScene);
+		menu.show();
+		
+		menuScene.setOnKeyPressed(new EventHandler<KeyEvent>() {
+			@Override
+			public void handle(KeyEvent event) {
+				KeyCode keyCode = event.getCode();
+				if (keyCode.equals(KeyCode.W)) {
+					speed = 130;
+					menu.close();
+					restart();
+				}
+				if (keyCode.equals(KeyCode.S)) {
+					speed = 100;
+					menu.close();
+					restart();
+				}
+				if (keyCode.equals(KeyCode.P)) {
+					speed = 80;
+					menu.close();
+					restart();
+				}
+				
+				if (keyCode.equals(KeyCode.D)) {
+					speed = 60;
+					menu.close();
+					restart();
+				}
+
+			}
+		});
+		
+		worm.setOnKeyReleased(event -> {
+			if (event.getCode() == KeyCode.ENTER){
+				speed = 130;
+				menu.close();
+				restart();
+			}
+		});
+		worm.setOnMouseClicked(
+			ae -> {
+				speed = 130;
+				menu.close();
+				restart();
+			}
+		);
+		snake.setOnKeyReleased(event -> {
+			if (event.getCode() == KeyCode.ENTER){
+				speed = 100;
+				menu.close();
+				restart();
+			}
+		});
+		snake.setOnMouseClicked(
+			ae -> {
+				speed = 100;
+				menu.close();
+				restart();
+			}
+		);
+		python.setOnKeyReleased(event -> {
+			if (event.getCode() == KeyCode.ENTER){
+				speed = 80;
+				menu.close();
+				restart();
+			}
+		});
+		python.setOnMouseClicked(
+			ae -> {
+				speed = 80;
+				menu.close();
+				restart();
+			}
+		);
+		dragon.setOnMouseClicked(
+			ae -> {
+				speed = 60;
+				menu.close();
+				restart();
+			}
+		);
+		python.setOnMouseClicked(
+			ae -> {
+				speed = 60;
+				menu.close();
+				restart();
+			}
+		);
+	}
+	
 	public static void main(String[] args) {
 		
 		launch(args);
@@ -422,6 +595,9 @@ public class Main extends Application {
 		
 	@Override
 	public void start(Stage arg0) throws Exception {
+		
+		image = new Image("file:segment.png");
+		imagePattern = new ImagePattern(image);
 		
 		setup();
 	
