@@ -1,0 +1,10 @@
+000Snake
+000Bat
+000Car
+000Dog
+000Elephant
+000Fool
+000Garb
+000Harpy
+000Igloo
+000Julia
